@@ -10,6 +10,17 @@ This is a fork of Jim Hokanson's Python interface. The core functionality remain
 All modifications are collected in `adi/utils.py`, with docstrings.
 Examples are included for [R](https://github.com/irw-jh/adinstruments_sdk_python/blob/main/examples/example.Rmd) and [Python](https://github.com/irw-jh/adinstruments_sdk_python/blob/main/examples/example.py).
 
+`0.0.16a1` -- See `adi/working.py` for more convenience functions.
+
+- `export_comments()`
+- `export_channels()`
+- `find_comments()`
+- `get_nearby_events()`
+- `process_ekg()`
+- `calc_hr()`
+- `visualize_window_plotly()`
+- `visualize_ekg_plotly()`
+
 _Original_
 
 Use this code to read .adicht (Labchart) files into Python. Interfacing with the ADIstruments DLL is done via [cffi](https://cffi.readthedocs.io/en/latest/).
@@ -25,10 +36,11 @@ Use this code to read .adicht (Labchart) files into Python. Interfacing with the
 
 This version is currently not available on PyPI. Please clone and install locally with `pip`.
 
-```
+```sh
 git clone https://github.com/irw-jh/adinstruments_sdk_python
 cd adinstruments_sdk_python
 pip install .
+# or pip install -e .
 ```
 
 ----
@@ -58,6 +70,12 @@ See examples for more processing, like finding and accessing channels based on n
 - [cffi](https://cffi.readthedocs.io/en/latest/)
 - [NumPy](https://numpy.org/)
 - Python 3.6-3.11
+
+### For using `working.py` functions
+
+- Pandas
+- Scipy
+- Plotly
 ----
 
 ## Setup for other Python versions ##

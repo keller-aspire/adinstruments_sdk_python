@@ -2,3 +2,13 @@
 
 from .read import read_file
 from .utils import extract_comments, extract_channels, convert_time, create_window, generate_timepoints, extract_window, extract_comment_window
+from .working import (
+    export_comments,
+    export_channels,
+    find_comments,
+    get_nearby_events,
+    process_ekg,
+    calc_hr,
+    visualize_window_plotly,
+    visualize_ekg_plotly
+)
