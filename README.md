@@ -1,136 +1,208 @@
 # adinstruments_sdk_python
 
-**Note:**  
-This is a fork of Jim Hokanson's Python interface. The core functionality remains unchanged, but this repo includes a few convenience functions:
+Python toolkit for reading and analyzing ADInstruments LabChart data. Two packages in one repo:
 
-- Load all comment info into a dataframe
-- Load all channel info into a dataframe
-- Extract raw data around a comment or time
+- **`adi`** -- Read `.adicht` files directly into Python/NumPy (no LabChart license needed)
+- **`hemodynamics`** -- Reusable hemodynamic signal analysis built on top of `adi`
 
-All modifications are collected in `adi/utils.py`, with docstrings.
-Examples are included for [R](https://github.com/irw-jh/adinstruments_sdk_python/blob/main/examples/example.Rmd) and [Python](https://github.com/irw-jh/adinstruments_sdk_python/blob/main/examples/example.py).
-
-`0.0.16a1` -- See `adi/working.py` for more convenience functions.
-
-- `export_comments()`
-- `export_channels()`
-- `find_comments()`
-- `get_nearby_events()`
-- `process_ekg()`
-- `calc_hr()`
-- `visualize_window_plotly()`
-- `visualize_ekg_plotly()`
-
-_Original_
-
-Use this code to read .adicht (Labchart) files into Python. Interfacing with the ADIstruments DLL is done via [cffi](https://cffi.readthedocs.io/en/latest/).
-
-- The code utilizes the SDK from ADIstruments to read files in Python as NumPy arrays.
-- **Currently only works for Windows. Not fixable by me, requires changes by ADInstruments**
-- A slightly more fleshed out Matlab version can be found [here](https://github.com/JimHokanson/adinstruments_sdk_matlab).
-- Currently requires Python 3.6-3.11 with some of the newer versions requiring 64 bit Python (this can change but requires some work on my end)
+**Windows only** (ADInstruments SDK constraint).
 
 ---
 
-## Installation ##
+## Quick Start
 
-This version is currently not available on PyPI. Please clone and install locally with `pip`.
+### Setup
 
 ```sh
-git clone https://github.com/irw-jh/adinstruments_sdk_python
+# Option A: conda (recommended)
+conda env create -f environment.yml
+conda activate labchart-sdk
+
+# Option B: pip into an existing environment
+git clone https://github.com/keller-aspire/adinstruments_sdk_python
 cd adinstruments_sdk_python
-pip install .
-# or pip install -e .
+pip install -e .
 ```
 
-----
-
-## Test code ##
-
-See examples for more processing, like finding and accessing channels based on name.
+### Read a LabChart file
 
 ```python
-    import adi
-    f = adi.read_file(r'C:\Users\RNEL\Desktop\test\test_file.adicht')
-    # All id numbering is 1 based, first channel, first block
-    # When indexing in Python we need to shift by 1 for 0 based indexing
-    # Functions however respect the 1 based notation ...
-    
-    # These may vary for your file ...
-    channel_id = 2
-    record_id = 1
-    data = f.channels[channel_id-1].get_data(record_id)
-    import matplotlib.pyplot as plt
-    plt.plot(data)
-    plt.show()
+import adi
+
+f = adi.read_file('recording.adicht')
+channel = f.channels[0]          # 0-indexed
+data = channel.get_data(1)       # record 1 (1-indexed)
+
+# Comments and channel metadata as DataFrames
+comments = adi.extract_comments(f)
+channels = adi.extract_channels(f)
 ```
-----
 
-## Dependencies ##
-- [cffi](https://cffi.readthedocs.io/en/latest/)
-- [NumPy](https://numpy.org/)
-- Python 3.6-3.11
-
-### For using `working.py` functions
-
-- Pandas
-- Scipy
-- Plotly
-----
-
-## Setup for other Python versions ##
-
-- Running the code might require compiling the cffi code depending on your Python version. 
-- This requires running cffi_build.py in the adi package. 
-- This might require installing cffi as well as some version of Visual Studio. 
-- The currently released code was compiled for Python 3.6-3.9 on Visual Studio 14.0 or greater was required.
-
-For upgrading to 3.8, I installed Python 3.8. Within the interpreter I ran the following:
-
-- Jim note to self, rather than installing Anaconda I simply:
-  - download Python from https://www.python.org/downloads/windows/
-  - cd to Python directory or run directly, these go to something like: `C:\Users\RNEL\AppData\Local\Programs\Python\Python39-32\python` 
-  - Note the above path is specific to my computer, might need to change user name
-  - This has result in an error that I need MS C++ Build tools : "Microsoft Visual C++ 14.0 or greater is required. Get it with "Microsoft C++ Build Tools": https://visualstudio.microsoft.com/visual-cpp-build-tools/" Ultimately I had to install the package along with the correct OS SDK (Windows 10 SDK for me).
-  
-  ![image](https://github.com/JimHokanson/adinstruments_sdk_python/assets/1593287/c94114a7-4cc1-4c59-a25a-f319d02402d9)
-
+### Analyze hemodynamics
 
 ```python
-import subprocess
-import sys
+import hemodynamics as hemo
 
-#https://stackoverflow.com/questions/12332975/installing-python-module-within-code
-def install(package):
-    subprocess.call([sys.executable, "-m", "pip", "install", package])
+# Load from .adicht, .txt export, or preprocessed .h5
+data = hemo.load_auto('recording.adicht', channel='ABP')
+abp = data['signals']['ABP']
+fs = data['fs']
 
-install("setuptools")
-install("cffi")
+# Continuous MAP/HR in sliding windows
+df = hemo.compute_continuous_hemodynamics(abp, fs)
 
+# Beat-by-beat feature extraction (14 features)
+features = hemo.extract_all_features(abp[:60000], fs)
+print(features['median'])  # maxDPDT, tau, SRT, HFER, ...
+
+# PV loop analysis (if LVP + LVV available)
+result = hemo.process_pv_loop(lvp, lvv, fs)
+print(result['ESP'], result['Ea'])
+```
+
+---
+
+## Package Structure
+
+```
+adi/                          # LabChart SDK interface
+  read.py                     #   File/Channel/Record classes
+  utils.py                    #   extract_comments, extract_window, etc.
+  working.py                  #   EKG processing, Plotly visualization
+
+hemodynamics/                 # Hemodynamic analysis library
+  io.py                       #   Uniform loaders: .adicht, .txt, .h5
+  cycles.py                   #   Cardiac cycle detection, beat extraction
+  events.py                   #   Comment standardization, phase landmarks
+  continuous.py               #   Sliding-window MAP/HR/SBP/DBP/PP
+  normalization.py            #   Beat phase normalization, PV loop averaging
+  features.py                 #   14 waveform features (dP/dt, tau, spectral)
+  spectral.py                 #   FFT band power, HFER, spectral centroid
+  pv_loops.py                 #   PV parameters, Ea/Ees, alpha calibration
+  tests/                      #   Validation suite (pytest)
+```
+
+---
+
+## hemodynamics Module Reference
+
+### Data Loading (`hemodynamics.io`)
+
+| Function | Description |
+|---|---|
+| `load_txt(path)` | Load LabChart .txt export (auto-detects header, columns) |
+| `load_adicht(path, channels, record)` | Load .adicht via SDK with chunking for large files |
+| `load_hdf5(path, animal, channels, record)` | Load preprocessed HDF5 |
+| `load_auto(path)` | Auto-detect format and dispatch |
+
+All loaders return `{'signals': {name: array}, 'fs': float, 'comments': [...], 'metadata': {...}}`.
+
+### Cardiac Cycle Detection (`hemodynamics.cycles`)
+
+| Function | Description |
+|---|---|
+| `detect_peaks(signal, fs, params)` | Find systolic peaks with configurable thresholds |
+| `detect_cycles(signal, fs)` | Peak-to-peak cycle boundaries |
+| `find_nadirs(signal, peak_locs)` | Diastolic minima between peaks |
+| `extract_clean_segment(signal, fs, n_beats)` | Longest stable segment (RR variability filter) |
+| `score_quality(signal, fs, volume)` | Signal quality scoring for window selection |
+
+Use `CycleDetectionParams.abp_default()` or `.lvp_default()` for signal-appropriate presets.
+
+### Continuous Hemodynamics (`hemodynamics.continuous`)
+
+```python
+df = compute_continuous_hemodynamics(abp, fs, params=ContinuousParams(window_s=60, step_s=60))
+# Returns DataFrame: time_min, MAP, HR, SBP, DBP, PP
+```
+
+### Event Handling (`hemodynamics.events`)
+
+| Function | Description |
+|---|---|
+| `standardize_comment(text)` | Normalize comment text to canonical labels |
+| `get_phase_landmarks(comments)` | Extract protocol phase timestamps (BS, EH, ED, AR, H1-H6) |
+| `extract_segment(signal, fs, center_time_s)` | Window extraction around a time point |
+| `find_best_window(signal, fs, center_time_s)` | Quality-scored scanning around a landmark |
+
+### Beat Normalization (`hemodynamics.normalization`)
+
+| Function | Description |
+|---|---|
+| `normalize_beats(beats, n_points, method)` | Phase-normalize to common grid (spline or linear) |
+| `average_beats(signal, fs)` | Detect, filter, normalize, and average beats |
+| `average_pv_loop(pressure, volume, fs)` | PV-specific averaging with volume smoothing |
+
+### Feature Extraction (`hemodynamics.features`)
+
+`extract_all_features(signal, fs)` returns median and IQR across all valid beats for 14 features:
+
+| Category | Features |
+|---|---|
+| Systolic | SRT (ms), SRS (mmHg/s), TmaxDPDT (ms), maxDPDT (mmHg/s) |
+| Diastolic | tau (s), DiastolicR2, absMinDPDT (mmHg/s), T50 (ms) |
+| Combined | DPDTR, TDE (mmHg/s), DPDTR_range (mmHg/s) |
+| Spectral | HFER, SC (Hz), SSlope (dB/Hz) |
+
+### Spectral Analysis (`hemodynamics.spectral`)
+
+| Function | Description |
+|---|---|
+| `extract_spectral_features(beat, fs)` | Per-beat FFT: HFER, SC, SSlope |
+| `compute_beat_averaged_spectrum(mean_beat, fs_norm)` | PSD of averaged waveform with Band 3 integration |
+
+Default frequency bands: Band 1 (0-10 Hz), Band 2 (10-30 Hz), Band 3 (30-80 Hz). Configurable via `SpectralBands`.
+
+### PV Loop Analysis (`hemodynamics.pv_loops`)
+
+| Function | Description |
+|---|---|
+| `process_pv_loop(pressure, volume, fs)` | Full pipeline: average loop + extract parameters |
+| `extract_pv_parameters(P_mean, V_mean, fs)` | ESP, EDP, dPdt_max/min, SV_raw, ESV, EDV |
+| `compute_ea(esp, sv_calibrated)` | Arterial elastance |
+| `compute_single_beat_ees(esp, esv_raw, v0)` | Ventricular elastance (single-beat method) |
+| `compute_alpha_from_baseline(sv_raw, co, hr)` | Conductance catheter calibration factor |
+
+---
+
+## Dependencies
+
+| Package | Purpose |
+|---|---|
+| numpy | Array operations |
+| cffi | ADInstruments DLL interface |
+| scipy | Signal processing, curve fitting |
+| pandas | DataFrames for tabular results |
+| h5py | HDF5 file I/O |
+| matplotlib | Plotting (optional) |
+
+---
+
+## Testing
+
+```sh
+conda activate labchart-sdk   # or your environment
+python -m pytest hemodynamics/tests/ -v
+```
+
+Tests include synthetic signal validation and real-data integration tests against swine hemorrhage recordings.
+
+---
+
+## CFFI Build Notes (Python 3.10+)
+
+Pre-compiled bindings are included for Python 3.6-3.9. For newer versions, compile from source:
+
+```python
+# Requires Visual Studio C++ Build Tools (v14.0+)
 import os
-#This would need to be changed based on where you keep the code
-os.chdir('E:/repos/python/adinstruments_sdk_python/adi')
-
-# For 64 bit windows
-exec(open("cffi_build.py").read())
-
-
-
-#------------------------- ONLY IF 32 BIT WINDOWS -------------------
-# For 32 bit windows
-exec(open("cffi_build_win32.py").read())
+os.chdir('adi')
+exec(open("cffi_build.py").read())      # 64-bit
+# exec(open("cffi_build_win32.py").read())  # 32-bit
 ```
-----
 
-## PyPi Notes ##
+---
 
-- update version in setup.py
-- update Python version in setup.py
-- from Anaconda I ran the command line in my enviroment and made sure twine was installed `pip install twine`. Then I changed my drive `e:` changes to the E drive and then cd'd to the directory to run:
-  - `python setup.py sdist bdist_wheel`
-  - `twine upload dist/*`
+## Origin
 
-
-## Improvements ##
-
-This was written extremely quickly and is missing some features. Feel free to open pull requests or to open issues.
+Fork of [Jim Hokanson's SDK](https://github.com/JimHokanson/adinstruments_sdk_python) with convenience functions by Ian Keller (`adi/utils.py`, `adi/working.py`) and hemodynamic analysis modules by Mingfeng Li (`hemodynamics/`).

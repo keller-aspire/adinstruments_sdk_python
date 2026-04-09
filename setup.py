@@ -15,7 +15,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/irw-jh/adinstruments_sdk_python",
     packages=setuptools.find_packages(),
-    install_requires=['numpy', 'cffi'],
+    install_requires=['numpy', 'cffi', 'scipy', 'pandas', 'h5py'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

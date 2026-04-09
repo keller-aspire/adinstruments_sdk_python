@@ -1,0 +1,15 @@
+name: labchart-sdk
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.12
+  - numpy>=1.24
+  - scipy>=1.10
+  - pandas>=2.0
+  - h5py>=3.8
+  - cffi>=1.15
+  - matplotlib>=3.7
+  - pip
+  - pip:
+    - -e .  # installs adi-reader + hemodynamics from this repo
