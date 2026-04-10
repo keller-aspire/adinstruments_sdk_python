@@ -43,8 +43,9 @@ def _compute_segment_hemodynamics(segment, fs, params=None):
     if len(clean) < fs * params.min_valid_seconds:
         return result
 
-    # Quality check
-    sig_range = float(clean.max() - clean.min())
+    # Quality check — use robust percentile range (1st-99th) so that
+    # transient artifacts don't discard an otherwise valid window.
+    sig_range = float(np.percentile(clean, 99) - np.percentile(clean, 1))
     if sig_range < params.signal_range_mmhg[0] or sig_range > params.signal_range_mmhg[1]:
         return result
 

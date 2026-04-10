@@ -1,5 +1,13 @@
 # Update Notes
 
+## 2026-04-11
+
+**Fixed CFFI path resolution in sub-package setup files.** `adi/setup.py` and `hemodynamics/setup.py` now use `os.path.abspath` to resolve `package_dir` correctly regardless of whether `pip install` is invoked from the repo root or the sub-directory. Previously, `package_dir={"adi": "."}` caused CFFI modules (`.pyd` files) not to be found when installing via `pip install -e adi/`.
+
+**Fixed signal range check rejecting windows with transient artifacts.** `_compute_segment_hemodynamics()` was using raw `min`/`max` to compute signal range, so a single spike (e.g., from a flush or zeroing event) would push the range above the 300 mmHg threshold and discard the entire window. Now uses 1st–99th percentile range instead. Tested on a 20-channel ALI recording with artifact-heavy records — all records now produce valid output.
+
+---
+
 ## 2026-04-10
 
 **Repo reorganization.** Moved dev-only validation scripts to `scripts/`. Added `examples/demo_hemodynamics.py` (CLI demo that accepts any `.adicht` or `.txt` file). Updated `.gitignore` to cover build artifacts (`*.egg-info`, `__pycache__`, `.pytest_cache`). Cleaned up stale egg-info directories.
