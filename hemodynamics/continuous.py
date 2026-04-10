@@ -48,15 +48,10 @@ def _compute_segment_hemodynamics(segment, fs, params=None):
     if sig_range < params.signal_range_mmhg[0] or sig_range > params.signal_range_mmhg[1]:
         return result
 
-    # Detect peaks using a per-segment adaptive height threshold
-    # (matching MATLAB prctile(abp_clean, 60) approach)
-    cycle_params = CycleDetectionParams(
-        smooth_window_ms=50,
-        min_distance_ms=300,
-        min_prominence_mmhg=5,
-        min_height_mmhg=float(np.percentile(clean, 60)),
-    )
-    peak_values, peak_locs = detect_peaks(clean, fs, cycle_params)
+    # Detect peaks — use default ABP params (prominence + distance only).
+    # No height threshold: prominence is sufficient and avoids silent
+    # failure on signals with different baselines or unit scaling.
+    peak_values, peak_locs = detect_peaks(clean, fs)
 
     if len(peak_locs) < params.min_peaks_per_window:
         return result

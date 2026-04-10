@@ -12,4 +12,7 @@ dependencies:
   - matplotlib>=3.7
   - pip
   - pip:
-    - -e .  # installs adi-reader + hemodynamics from this repo
+    - -e .          # installs both packages (adi + hemodynamics)
+    # Or install individually:
+    #   pip install -e adi/            # reader only (numpy, cffi)
+    #   pip install -e hemodynamics/   # analysis (+ adi-reader as dependency)
